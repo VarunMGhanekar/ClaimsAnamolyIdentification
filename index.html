@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claims Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #12162A; --ink-line: #2B3156;
+    --page-bg: #EEF1F6; --surface: #FFFFFF; --border: #DCE1EA;
+    --text: #1B2136; --text-muted: #5B6478; --text-faint: #8991A6;
+    --teal: #1E7C74; --teal-bg: #E8F4F2;
+    --amber: #B9822C; --amber-bg: #FBF1E1;
+    --red: #A6392F; --red-bg: #FBEAE8;
+    --steel: #375A85; --steel-bg: #EAF0F8;
+    --radius: 8px;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); background: var(--page-bg); color: var(--text); font-size: 14px; line-height: 1.55; }
+  .mono { font-family: var(--mono); }
+
+  header {
+    background: var(--ink); color: #EDEFF7; padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    border-bottom: 1px solid var(--ink-line); position: sticky; top: 0; z-index: 30; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand h1 { font-size: 17px; font-weight: 600; margin: 0; }
+  .brand .batch-id { font-family: var(--mono); font-size: 12px; color: #9AA3C4; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-meta { font-size: 12.5px; color: #9AA3C4; }
+  .btn {
+    font-family: var(--sans); font-size: 12.5px; font-weight: 600; padding: 8px 14px;
+    border-radius: 6px; border: 1px solid #3B4370; background: #1D2340; color: #EDEFF7; cursor: pointer;
+  }
+  .btn:hover { background: #262C4E; }
+  .btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .btn.primary:hover { background: #196862; }
+
+  .tabbar { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; gap: 2px; padding: 0 28px; position: sticky; top: 57px; z-index: 20; overflow-x: auto; }
+  .tab { font-size: 13px; font-weight: 500; color: var(--text-muted); padding: 13px 14px; cursor: pointer; border-bottom: 2px solid transparent; user-select: none; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--steel); }
+  .tab .count { font-family: var(--mono); font-size: 10.5px; background: var(--steel-bg); color: var(--steel); padding: 1px 6px; border-radius: 999px; margin-left: 5px; }
+  .tab .count.zero { background: #EDEEF3; color: var(--text-faint); }
+
+  main { max-width: 1160px; margin: 0 auto; padding: 26px 24px 90px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .stat-card .num { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--ink); }
+  .stat-card .label { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+  .stat-card.accent-red .num { color: var(--red); }
+  .stat-card.accent-teal .num { color: var(--teal); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; }
+  .panel-head { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .panel-head h3 { margin: 0; font-size: 14.5px; font-weight: 600; }
+  .panel-head .rule-code { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .panel-body { padding: 18px 20px; }
+
+  .band-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+  .band-seg { display: flex; align-items: center; justify-content: center; color: #fff; font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
+  .band-seg.Low { background: var(--text-faint); }
+  .band-seg.High { background: var(--amber); }
+  .band-seg.Critical { background: var(--red); }
+  .band-legend { display: flex; gap: 18px; font-size: 12.5px; color: var(--text-muted); flex-wrap: wrap; }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  .rule-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; }
+  .rule-summary-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; }
+  .rule-summary-card:hover { background: #FAFBFD; }
+  .rule-summary-card .n { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+  .rule-summary-card .n.zero { color: var(--text-faint); }
+  .rule-summary-card .lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  table.claims { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.claims th { text-align: left; color: var(--text-faint); font-weight: 600; font-size: 11px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #FAFBFD; }
+  table.claims td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  tr.claim-row { cursor: pointer; }
+  tr.claim-row:hover td { background: #FAFBFD; }
+  tr.claim-row.expanded td { background: #F4F6FA; }
+  .caret { display: inline-block; transition: transform .15s; color: var(--text-faint); margin-right: 6px; }
+  tr.claim-row.expanded .caret { transform: rotate(90deg); }
+  .chan-badge { font-family: var(--mono); font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 5px; background: #EDEEF3; color: #565F7A; }
+  .chan-badge.PAPER { background: var(--amber-bg); color: var(--amber); }
+  .finding-badge { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-right: 4px; display: inline-block; margin-bottom: 2px; }
+  .finding-badge.Critical { background: var(--red-bg); color: var(--red); }
+  .finding-badge.High { background: var(--amber-bg); color: var(--amber); }
+  .disp-tag { font-family: var(--mono); font-size: 11px; }
+  .disp-tag.AutoCleared { color: var(--teal); }
+  .disp-tag.Pending { color: var(--text-faint); }
+  .sent-badge { font-family: var(--mono); font-size: 10.5px; color: var(--teal); border: 1px solid var(--teal); padding: 1px 7px; border-radius: 999px; }
+
+  tr.detail-row td { padding: 0; border-bottom: 1px solid var(--border); background: #F9FAFC; }
+  .detail-wrap { display: none; padding: 16px 20px 18px 38px; }
+  .detail-wrap.open { display: block; }
+  .detail-label { font-size: 11px; font-weight: 600; color: var(--text-faint); margin: 0 0 8px; }
+  table.mini { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 14px; }
+  table.mini th { text-align: left; color: var(--text-faint); font-weight: 600; font-size: 11px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  table.mini td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .claim-header-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; font-size: 12.5px; }
+  .ch-field .k { font-size: 11px; color: var(--text-faint); margin-bottom: 2px; }
+  .ch-field .v { font-family: var(--mono); }
+
+  .finding-detail-row { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 10px; background: #fff; }
+  .fd-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; justify-content: space-between; }
+  .fd-head-left { display: flex; align-items: center; gap: 8px; }
+  .fd-rule { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .fd-detail { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+  .dup-compare { display: flex; gap: 10px; margin-top: 10px; }
+  .dup-side { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+  .dup-tag { font-size: 11.5px; color: var(--text-muted); }
+  .send-mini-btn { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--steel); background: var(--steel-bg); border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; }
+  .send-mini-btn:hover { background: #DCE7F5; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-faint); font-size: 13px; }
+
+  table.review { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.review th { text-align: left; color: var(--text-faint); font-weight: 600; font-size: 11px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #FAFBFD; }
+  table.review td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+  /* ---------- Overlays / modals shared ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(18,22,42,0.45); display: none; align-items: stretch; justify-content: flex-end; z-index: 50; }
+  .overlay.center { align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+  .drawer { width: 460px; max-width: 92vw; background: var(--surface); height: 100%; padding: 26px 26px 22px; overflow-y: auto; box-shadow: -8px 0 30px rgba(0,0,0,0.18); }
+  .modal { width: 560px; max-width: 92vw; background: var(--surface); border-radius: var(--radius); padding: 26px; max-height: 90vh; overflow-y: auto; }
+  .panel-close { float: right; background: none; border: none; font-size: 20px; color: var(--text-faint); cursor: pointer; line-height: 1; }
+  .drawer h3, .modal h3 { margin: 0 0 4px; font-size: 17px; }
+  .drawer-sub, .modal .sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .finding-box { background: #FAFBFD; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; margin-bottom: 16px; }
+  .field-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; display: block; }
+  select, textarea, input[type=text], input[type=email] {
+    width: 100%; font-family: var(--sans); font-size: 13px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); margin-bottom: 16px; resize: vertical;
+  }
+  textarea.body-area { min-height: 160px; line-height: 1.5; font-family: var(--mono); font-size: 12px; }
+  .send-btn { width: 100%; font-family: var(--sans); font-size: 13.5px; font-weight: 600; padding: 12px; border-radius: 7px; border: none; background: var(--ink); color: #fff; cursor: pointer; }
+  .send-btn:hover { background: #262C4E; }
+  .send-btn:disabled { background: #C6CBDB; cursor: not-allowed; }
+  .drawer-hint { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; text-align: center; }
+
+  /* ---------- Load-data modal ---------- */
+  .load-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .load-tab { font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 6px; background: #F0F2F6; color: var(--text-muted); cursor: pointer; }
+  .load-tab.active { background: var(--steel-bg); color: var(--steel); }
+  .load-pane { display: none; }
+  .load-pane.active { display: block; }
+  .file-drop {
+    border: 1px dashed var(--border); border-radius: var(--radius); padding: 30px 20px; text-align: center;
+    color: var(--text-muted); font-size: 13px; cursor: pointer; background: #FAFBFD;
+  }
+  .file-drop:hover { background: #F4F6FA; }
+  #json-paste, #findings-paste { min-height: 160px; font-family: var(--mono); font-size: 12px; }
+  .modal-error { color: var(--red); font-size: 12.5px; margin: 8px 0 0; display: none; }
+  .modal-error.show { display: block; }
+  .modal-note { color: var(--teal); font-size: 12.5px; margin: 8px 0 0; display: none; }
+  .modal-note.show { display: block; }
+  .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 8px; }
+  .link-btn { background: none; border: none; color: var(--steel); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .link-btn:hover { text-decoration: underline; }
+  .schema-hint { font-size: 11.5px; color: var(--text-faint); background: #FAFBFD; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+  .schema-hint code { background: #EDEEF3; padding: 1px 4px; border-radius: 3px; }
+
+  #toast {
+    position: fixed; bottom: 26px; right: 26px; background: var(--ink); color: #fff; padding: 13px 18px;
+    border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); opacity: 0;
+    transform: translateY(8px); transition: opacity .25s, transform .25s; pointer-events: none; z-index: 60; max-width: 340px;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast strong { color: var(--teal); }
+
+  @media (max-width: 800px) {
+    .stat-grid { grid-template-columns: repeat(2,1fr); }
+    .claim-header-grid { grid-template-columns: repeat(2,1fr); }
+  }
+
+/* ---------- Provider analysis dashboard ---------- */
+.provider-summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+.provider-stat { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; background:#fff; }
+.provider-stat .num { font-family:var(--mono); font-size:24px; font-weight:600; color:var(--ink); }
+.provider-stat .lbl { font-size:11.5px; color:var(--text-muted); margin-top:3px; }
+.provider-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.provider-table th { text-align:left; color:var(--text-faint); font-size:11px; font-weight:600; padding:10px 12px; background:#FAFBFD; border-bottom:1px solid var(--border); }
+.provider-table td { padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+.provider-table tr.provider-click { cursor:pointer; }
+.provider-table tr.provider-click:hover td { background:#FAFBFD; }
+.provider-table tr.provider-selected td { background:#F4F6FA; }
+.provider-sub { font-size:10.5px; color:var(--text-faint); margin-top:2px; font-family:var(--mono); }
+.pill { display:inline-block; font-family:var(--mono); font-size:10px; padding:3px 7px; border-radius:999px; }
+.pill.Low { background:#EDEEF3; color:#5B6478; }
+.pill.High { background:var(--amber-bg); color:var(--amber); }
+.pill.Critical { background:var(--red-bg); color:var(--red); }
+.analysis-card { margin-top:18px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; }
+.analysis-head { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.analysis-head h3 { margin:0; font-size:15px; font-weight:600; }
+.analysis-meta { color:var(--text-muted); font-size:11px; margin-top:3px; }
+.analysis-score { display:flex; gap:8px; align-items:center; }
+.analysis-score .score { font-family:var(--mono); font-size:14px; font-weight:600; }
+.analysis-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:18px; }
+.analysis-box { border:1px solid var(--border); border-radius:7px; padding:15px; }
+.analysis-box h4 { margin:0 0 14px; font-size:13px; }
+.metric-row { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid #F0F2F5; font-size:11.5px; }
+.metric-row:last-of-type { border-bottom:none; }
+.metric-row .k { color:var(--text-muted); }
+.metric-row .v { font-family:var(--mono); font-weight:600; text-align:right; }
+.compare-bar { margin-top:14px; }
+.compare-bar .row { margin-bottom:12px; }
+.compare-bar .label { display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-muted); margin-bottom:5px; }
+.compare-bar .track { height:8px; background:#EDF0F4; border-radius:5px; overflow:hidden; }
+.compare-bar .fill-provider { height:100%; background:var(--red); }
+.compare-bar .fill-peer { height:100%; background:#8792A8; }
+.analysis-summary { padding:15px 18px; border-top:1px solid var(--border); color:var(--text-muted); font-size:11.5px; line-height:1.55; }
+.claim-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+.claim-chip { font-family:var(--mono); font-size:10px; background:#F1F3F7; color:#4E5870; padding:3px 6px; border-radius:4px; }
+.review-flag { margin-top:10px; }
+@media (max-width:800px) {
+  .provider-summary-grid { grid-template-columns:repeat(2,1fr); }
+  .analysis-grid { grid-template-columns:1fr; }
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><h1>Claims Dashboard</h1><span class="batch-id" id="batch-id-label"></span></div>
+  <div class="header-right">
+    <span class="header-meta" id="payer-label"></span>
+    <button class="btn" id="open-add-findings">Add findings</button>
+    <button class="btn primary" id="open-load-modal">Load data</button>
+  </div>
+</header>
+
+<div class="tabbar" id="tabbar">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="claims">Claims <span class="count" id="count-claims">0</span></div>
+  <div class="tab" data-tab="R001">Duplicate Claims <span class="count" id="count-R001">0</span></div>
+  <div class="tab" data-tab="R002">NCCI Edit <span class="count" id="count-R002">0</span></div>
+  <div class="tab" data-tab="R003">High-Dollar Threshold <span class="count" id="count-R003">0</span></div>
+  <div class="tab" data-tab="R004">Data Integrity <span class="count" id="count-R004">0</span></div>
+  <div class="tab" data-tab="R005">Provider Utilization <span class="count" id="count-R005">0</span></div>
+  <div class="tab" data-tab="R006">Coding Distribution / Peer Comparison <span class="count" id="count-R006">0</span></div>
+  <div class="tab" data-tab="review">Review <span class="count" id="count-review">0</span></div>
+</div>
+
+<main>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="page active" id="page-overview">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Claims screened</div></div>
+      <div class="stat-card accent-red"><div class="num" id="stat-findings">0</div><div class="label">Carrying a finding</div></div>
+      <div class="stat-card accent-teal"><div class="num" id="stat-cleared">0</div><div class="label">Auto-cleared</div></div>
+      <div class="stat-card"><div class="num" id="stat-review">0</div><div class="label">In review queue</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Findings by type</h3></div>
+      <div class="panel-body"><div class="rule-summary-grid" id="rule-summary-grid"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Claims by band</h3></div>
+      <div class="panel-body">
+        <div class="band-bar" id="band-bar"></div>
+        <div class="band-legend" id="band-legend"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLAIMS (all) ============ -->
+  <section class="page" id="page-claims">
+    <div class="panel">
+      <div class="panel-head"><h3>All claims</h3></div>
+      <table class="claims"><thead><tr><th></th><th>Claim</th><th>Channel</th><th>Member</th><th>Provider</th><th>Date of service</th><th>Total</th><th>Findings</th><th>Disposition</th></tr></thead>
+      <tbody id="tbody-claims"></tbody></table>
+    </div>
+  </section>
+
+  <!-- ============ Rule-specific tabs (generated) ============ -->
+  <section class="page" id="page-R001">
+    <div class="panel"><div class="panel-head"><h3>Duplicate Claims</h3><span class="rule-code">R001</span></div>
+    <table class="claims"><thead><tr><th></th><th>Claim</th><th>Channel</th><th>Member</th><th>Provider</th><th>Date of service</th><th>Total</th><th>Findings</th><th>Disposition</th></tr></thead>
+    <tbody id="tbody-R001"></tbody></table></div>
+  </section>
+  <section class="page" id="page-R002">
+    <div class="panel"><div class="panel-head"><h3>NCCI Edit Claims</h3><span class="rule-code">R002</span></div>
+    <table class="claims"><thead><tr><th></th><th>Claim</th><th>Channel</th><th>Member</th><th>Provider</th><th>Date of service</th><th>Total</th><th>Findings</th><th>Disposition</th></tr></thead>
+    <tbody id="tbody-R002"></tbody></table></div>
+  </section>
+  <section class="page" id="page-R003">
+    <div class="panel"><div class="panel-head"><h3>High-Dollar Threshold Claims</h3><span class="rule-code">R003</span></div>
+    <table class="claims"><thead><tr><th></th><th>Claim</th><th>Channel</th><th>Member</th><th>Provider</th><th>Date of service</th><th>Total</th><th>Findings</th><th>Disposition</th></tr></thead>
+    <tbody id="tbody-R003"></tbody></table></div>
+  </section>
+  <section class="page" id="page-R004">
+    <div class="panel"><div class="panel-head"><h3>Data Integrity</h3><span class="rule-code">R004</span></div>
+    <table class="claims"><thead><tr><th></th><th>Claim</th><th>Channel</th><th>Member</th><th>Provider</th><th>Date of service</th><th>Total</th><th>Findings</th><th>Disposition</th></tr></thead>
+    <tbody id="tbody-R004"></tbody></table></div>
+  </section>
+  
+<section class="page" id="page-R005">
+  <div class="provider-summary-grid">
+    <div class="provider-stat"><div class="num" id="pu-stat-providers">0</div><div class="lbl">Providers analyzed</div></div>
+    <div class="provider-stat"><div class="num" id="pu-stat-signals">0</div><div class="lbl">Volume signals</div></div>
+    <div class="provider-stat"><div class="num" id="pu-stat-highest">Low</div><div class="lbl">Highest volume band</div></div>
+    <div class="provider-stat"><div class="num" id="pu-stat-review">0</div><div class="lbl">Review required</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h3>Provider Utilization Volume</h3>
+      <span class="rule-code">R005</span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <table class="provider-table">
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Specialty</th>
+            <th>Current Volume</th>
+            <th>Provider Baseline</th>
+            <th>Score</th>
+            <th>Band</th>
+            <th>Indicator</th>
+          </tr>
+        </thead>
+        <tbody id="provider-util-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="provider-util-detail"></div>
+</section>
+
+<section class="page" id="page-R006">
+  <div class="panel">
+    <div class="panel-head">
+      <h3>Coding Distribution / Peer Comparison</h3>
+      <span class="rule-code">R006 · CPT 99215</span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <table class="provider-table">
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>CPT</th>
+            <th>Provider Share</th>
+            <th>Peer Share</th>
+            <th>Difference</th>
+            <th>Score</th>
+            <th>Band</th>
+            <th>Indicator</th>
+          </tr>
+        </thead>
+        <tbody id="coding-dist-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="coding-dist-detail"></div>
+</section>
+
+
+</main>
+
+<!-- Send-email modal -->
+<div class="overlay center" id="send-overlay">
+  <div class="modal">
+    <button class="panel-close" id="send-close">&times;</button>
+    <h3 id="send-title">CLM-005</h3>
+    <div class="sub" id="send-sub">—</div>
+    <label class="field-label" for="send-to">To</label>
+    <input type="email" id="send-to" placeholder="reviewer@yourorg.example">
+    <label class="field-label" for="send-subject">Subject</label>
+    <input type="text" id="send-subject">
+    <label class="field-label" for="send-body">Body</label>
+    <textarea class="body-area" id="send-body"></textarea>
+    <button class="send-btn" id="send-confirm-btn">Send notification</button>
+    <div class="drawer-hint">Opens your email client with these fields pre-filled — edit anything above first.</div>
+  </div>
+</div>
+
+<!-- Load data modal (full replace) -->
+<div class="overlay" id="load-overlay">
+  <div class="drawer">
+    <button class="panel-close" id="load-close">&times;</button>
+    <h3>Load batch data</h3>
+    <div class="sub">Replaces everything on this dashboard with a new batch.</div>
+    <div class="load-tabs">
+      <div class="load-tab active" data-pane="file">Upload a file</div>
+      <div class="load-tab" data-pane="paste">Paste JSON</div>
+    </div>
+    <div class="load-pane active" id="pane-file">
+      <div class="file-drop" id="file-drop">Click to choose a .json file<br><span style="font-size:11.5px;">or drag one here</span></div>
+      <input type="file" id="file-input" accept="application/json,.json" style="display:none;">
+    </div>
+    <div class="load-pane" id="pane-paste">
+      <textarea id="json-paste" placeholder='{"batch": {...}, "claims": [...]} or [{"claim_id":"CLM-002", "line_no":"1", "cpt":"99213", ...}]'></textarea>
+      <button class="btn primary" id="load-paste-btn" style="margin-top:10px;">Load pasted JSON</button>
+    </div>
+    <div class="modal-error" id="load-error"></div>
+    <div class="modal-actions">
+      <button class="link-btn" id="download-template-btn">Download current data</button>
+      <button class="link-btn" id="load-sample-btn">Reset to sample data</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add findings modal (additive merge) -->
+<div class="overlay" id="findings-overlay">
+  <div class="drawer">
+    <button class="panel-close" id="findings-close">&times;</button>
+    <h3>Add findings</h3>
+    <div class="sub">Layer a finding onto claims already loaded — matched by claim ID or by provider. Doesn't touch anything else.</div>
+    <div class="schema-hint">
+      Match specific claims: <code>{"rule":"R001","label":"Duplicate Claim","severity":"Critical","match":{"claimIds":["CLM-012"]},"detail":"...","duplicateOf":"CLM-011"}</code><br><br>
+      Or sweep a whole provider: <code>{"rule":"R005","label":"Provider Utilization Volume","severity":"High","match":{"providerNpi":"2384710651"},"detail":"..."}</code><br><br>
+      Rule codes: R001 Duplicate · R002 NCCI · R003 High-Dollar · R004 Data Integrity · R005 Provider Utilization Volume · R006 Coding Distribution / Peer Comparison.
+    </div>
+    <textarea id="findings-paste" placeholder="Paste a findings JSON object here"></textarea>
+    <button class="btn primary" id="apply-findings-btn" style="margin-top:10px;">Apply findings</button>
+    <div class="modal-error" id="findings-error"></div>
+    <div class="modal-note" id="findings-note"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================================
+   DATA FORMAT — full batch (Load Data)
+   {
+     "batch": { "batchId": "string", "sourceFile": "string", "payer": "string" },
+     "claims": [
+       { "claimId","channel":"EDI|PAPER","member","memberId","provider","providerNpi",
+         "dateOfService","receivedDate","placeOfService","diagnoses":[],
+         "lineItems":[{"cpt","modifiers":[],"units","billed"}], "totalBilled",
+         "findings": [{"rule","label","severity","detail","duplicateOf"}] }
+     ]
+   }
+   band and disposition are DERIVED from findings — you never set them directly:
+     - band: Critical if any finding is Critical, else High if any is High, else Low
+     - disposition: "Pending" if any finding present, else "AutoCleared"
+
+   DATA FORMAT — additive findings (Add Findings)
+   {
+     "rule": "R001", "label": "Duplicate Claim", "severity": "Critical",
+     "detail": "default text applied to every matched claim",
+     "match": { "claimIds": ["CLM-012"] }        // or { "providerNpi": "2384710651" }
+     // OR, for per-claim overrides:
+     "items": [{ "claimId": "CLM-012", "detail": "...", "duplicateOf": "CLM-011" }]
+   }
+   ========================================================================= */
+
+const RULE_TABS = ["R001","R002","R003","R004","R005","R006"];
+const RULE_LABELS = { R001: "Duplicate Claim", R002: "NCCI Edit", R003: "High-Dollar Threshold", R004: "Data Integrity", R005: "Provider Utilization Volume", R006: "Coding Distribution / Peer Comparison" };
+
+const SAMPLE_DATA = {
+  batch: { batchId: "BATCH-2026-0908-001", sourceFile: "PI_CLAIM_BATCH_20260901.xlsx", payer: "Continental Health Plan · Payment Integrity" },
+  claims: [
+    { claimId: "CLM-002", channel: "EDI", member: "Alicia Brennan", memberId: "MBR-100001",
+      provider: "Northlake Family Medicine", providerNpi: "2048173509",
+      dateOfService: "2026-08-10", receivedDate: "2026-08-12", placeOfService: "11", diagnoses: ["E11.9","I10"],
+      lineItems: [{cpt:"99213",modifiers:[],units:1,billed:145.00},{cpt:"36415",modifiers:[],units:1,billed:12.00}],
+      totalBilled: 157.00, findings: [] },
+    { claimId: "CLM-005", channel: "EDI", member: "Harold Ndiaye", memberId: "MBR-100002",
+      provider: "Cascade Orthopedic Associates", providerNpi: "2135629041",
+      dateOfService: "2026-08-06", receivedDate: "2026-08-08", placeOfService: "22", diagnoses: ["M17.11"],
+      lineItems: [{cpt:"27447",modifiers:["RT"],units:1,billed:14200.00}],
+      totalBilled: 14200.00,
+      findings: [{ rule: "R003", label: "High-Dollar Threshold", severity: "High",
+        detail: "Total billed $14,200.00 exceeds the review threshold of $10,000.00. This is a value-based review trigger, not an anomaly indicator — a high-dollar claim may be entirely appropriate." }] },
+    { claimId: "CLM-011", channel: "EDI", member: "Dennis Okafor", memberId: "MBR-100006",
+      provider: "Lakeside Primary Care", providerNpi: "2603749150",
+      dateOfService: "2026-08-05", receivedDate: "2026-08-07", placeOfService: "11", diagnoses: ["I10","I25.10"],
+      lineItems: [{cpt:"93000",modifiers:[],units:1,billed:48.00},{cpt:"99214",modifiers:[],units:1,billed:215.00}],
+      totalBilled: 263.00, findings: [] },
+    { claimId: "CLM-012", channel: "PAPER", member: "Dennis Okafor", memberId: "MBR-100006",
+      provider: "Lakeside Primary Care", providerNpi: "2603749150",
+      dateOfService: "2026-08-05", receivedDate: "2026-08-19", placeOfService: "11", diagnoses: ["I10","I25.10"],
+      lineItems: [{cpt:"93000",modifiers:[],units:1,billed:48.00},{cpt:"99214",modifiers:[],units:1,billed:215.00}],
+      totalBilled: 263.00,
+      findings: [{ rule: "R001", label: "Duplicate Claim", severity: "Critical", duplicateOf: "CLM-011",
+        detail: "Duplicate of CLM-011 (this batch). Both claims carry member MBR-100006, date of service 2026-08-05, billing provider 2603749150, CPT set [93000, 99214], and total billed $263.00. CLM-012 was received 2026-08-19 via PAPER; CLM-011 was received 2026-08-07 via EDI." }] },
+    { claimId: "CLM-021", channel: "PAPER", member: "Marcus Vaile", memberId: "MBR-100008",
+      provider: "Meridian Internal Medicine Group", providerNpi: "2459301870",
+      dateOfService: "2026-08-12", receivedDate: "2026-08-14", placeOfService: "11", diagnoses: ["I10","E78.5"],
+      lineItems: [{cpt:"99215",modifiers:[],units:1,billed:385.00}],
+      totalBilled: 385.00,
+      findings: [{ rule: "R006", label: "Peer-Relative Coding Intensity", severity: "Critical",
+        detail: "This provider's level-5 E/M coding share is 62% (137 of 221 claims), against a peer average of 9%. Passes every deterministic rule — this is an agent judgment against the provider baseline." }] },
+    { claimId: "CLM-030", channel: "PAPER", member: "Priya Raghunathan", memberId: "MBR-100007",
+      provider: "Riverbend Digestive Health", providerNpi: "2270934180",
+      dateOfService: "2026-08-07", receivedDate: "2026-08-09", placeOfService: "24", diagnoses: ["K63.5","D12.6"],
+      lineItems: [{cpt:"45380",modifiers:[],units:1,billed:890.00},{cpt:"45378",modifiers:[],units:1,billed:640.00}],
+      totalBilled: 1530.00,
+      findings: [{ rule: "R002", label: "NCCI Edit", severity: "High",
+        detail: "NCCI PTP edit: CPT 45380 (Column 1) and 45378 (Column 2) appear on the same claim with no permitted override modifier (59, XE, XP, XS, XU) present. Source: NCCI Practitioner PTP table, 2026 Q3." }] },
+    ...Array.from({length:18}, (_,i) => ({
+      claimId: `CLM-${101+i}`, channel: "EDI", member: `Sample Member ${i+1}`, memberId: `MBR-${100020+i}`,
+      provider: "Westgate Family Practice", providerNpi: "2384710651",
+      dateOfService: "2026-08-15", receivedDate: "2026-08-17", placeOfService: "11", diagnoses: ["I10","E11.9"],
+      lineItems: [{cpt:"99215",modifiers:[],units:1,billed:362.00}],
+      totalBilled: 362.00,
+      findings: [{ rule: "R005", label: "Provider Utilization Volume", severity: "High",
+        detail: "Westgate Family Practice submitted 18 claims for CPT 99215 on 2026-08-15 — 1.8 times their typical daily maximum of 10. One reviewer decision on this provider covers all 18 claims." }],
+    })),
+  ],
+};
+
+
+const PROVIDER_ANALYSIS = [
+  {
+    npi:"2048173509", name:"Northlake Family Medicine", specialty:"Family Medicine", peerGroup:"Family Medicine",
+    utilization:{
+      currentClaimCount:1, providerBaselineLow:14, providerBaselineHigh:19,
+      score:10, band:"Low", indicator:"NO_MATERIAL_VOLUME_ANOMALY",
+      reasoning:"Current volume is 1 claim versus the provider baseline of 14-19 claims.",
+      claimIds:["CLM-002"], dateOfService:"2026-08-15"
+    },
+    coding:{
+      codingCpt:"99215", currentBatchCptCount:0, historicalCptCount:13, historicalTotalClaimCount:184,
+      providerPercentage:7, peerPercentage:8, differencePp:-1, score:10, band:"Low",
+      indicator:"NO_MATERIAL_DIVERGENCE", reasoning:"CPT 99215 represents 7% of 184 historical claims versus 8% for peers.",
+      claimIds:[]
+    }
+  },
+  {
+    npi:"2135629041", name:"Cascade Orthopedic Associates", specialty:"Orthopedic Surgery", peerGroup:"Orthopedic Surgery",
+    utilization:{
+      currentClaimCount:1, providerBaselineLow:1, providerBaselineHigh:2,
+      score:10, band:"Low", indicator:"NO_MATERIAL_VOLUME_ANOMALY",
+      reasoning:"Current volume is 1 claim versus the provider baseline of 1-2 claims.",
+      claimIds:["CLM-005"], dateOfService:"2026-08-15"
+    },
+    coding:{
+      codingCpt:"99215", currentBatchCptCount:0, historicalCptCount:5, historicalTotalClaimCount:96,
+      providerPercentage:5, peerPercentage:6, differencePp:-1, score:10, band:"Low",
+      indicator:"NO_MATERIAL_DIVERGENCE", reasoning:"CPT 99215 represents 5% of 96 historical claims versus 6% for peers.",
+      claimIds:[]
+    }
+  },
+  {
+    npi:"2270934180", name:"Riverbend Digestive Health", specialty:"Gastroenterology", peerGroup:"Gastroenterology",
+    utilization:{
+      currentClaimCount:1, providerBaselineLow:4, providerBaselineHigh:7,
+      score:10, band:"Low", indicator:"NO_MATERIAL_VOLUME_ANOMALY",
+      reasoning:"Current volume is 1 claim versus the provider baseline of 4-7 claims.",
+      claimIds:["CLM-030"], dateOfService:"2026-08-15"
+    },
+    coding:{
+      codingCpt:"99215", currentBatchCptCount:0, historicalCptCount:8, historicalTotalClaimCount:141,
+      providerPercentage:6, peerPercentage:7, differencePp:-1, score:10, band:"Low",
+      indicator:"NO_MATERIAL_DIVERGENCE", reasoning:"CPT 99215 represents 6% of 141 historical claims versus 7% for peers.",
+      claimIds:[]
+    }
+  },
+  {
+    npi:"2384710651", name:"Westgate Family Practice", specialty:"Family Medicine", peerGroup:"Family Medicine",
+    utilization:{
+      currentClaimCount:18, providerBaselineLow:8, providerBaselineHigh:10,
+      score:78, band:"High", indicator:"UTILIZATION_VOLUME",
+      reasoning:"18 claims occurred on the same date versus the provider's typical daily baseline of 8-10 claims.",
+      claimIds:["CLM-101","CLM-102","CLM-103","CLM-104","CLM-105","CLM-106","CLM-107","CLM-108","CLM-109","CLM-110","CLM-111","CLM-112","CLM-113","CLM-114","CLM-115","CLM-116","CLM-117","CLM-118"],
+      dateOfService:"2026-08-15"
+    },
+    coding:{
+      codingCpt:"99215", currentBatchCptCount:18, historicalCptCount:61, historicalTotalClaimCount:512,
+      providerPercentage:12, peerPercentage:8, differencePp:4, score:25, band:"Low",
+      indicator:"NO_MATERIAL_DIVERGENCE", reasoning:"CPT 99215 represents 12% of 512 historical claims versus 8% for peers. The 4 percentage-point difference is not materially divergent.",
+      claimIds:["CLM-101","CLM-102","CLM-103","CLM-104","CLM-105","CLM-106","CLM-107","CLM-108","CLM-109","CLM-110","CLM-111","CLM-112","CLM-113","CLM-114","CLM-115","CLM-116","CLM-117","CLM-118"]
+    }
+  },
+  {
+    npi:"2459301870", name:"Meridian Internal Medicine Group", specialty:"Internal Medicine", peerGroup:"Internal Medicine",
+    utilization:{
+      currentClaimCount:1, providerBaselineLow:5, providerBaselineHigh:9,
+      score:10, band:"Low", indicator:"NO_MATERIAL_VOLUME_ANOMALY",
+      reasoning:"Current volume is 1 claim versus the provider baseline of 5-9 claims.",
+      claimIds:["CLM-021"], dateOfService:"2026-08-15"
+    },
+    coding:{
+      codingCpt:"99215", currentBatchCptCount:1, historicalCptCount:137, historicalTotalClaimCount:221,
+      providerPercentage:62, peerPercentage:9, differencePp:53, score:90, band:"Critical",
+      indicator:"CODING_DISTRIBUTION", reasoning:"CPT 99215 represents 62% of 221 historical claims versus 9% for peers. The 53 percentage-point difference is materially divergent.",
+      claimIds:["CLM-021"]
+    }
+  },
+  {
+    npi:"2603749150", name:"Lakeside Primary Care", specialty:"Family Medicine", peerGroup:"Family Medicine",
+    utilization:{
+      currentClaimCount:1, providerBaselineLow:9, providerBaselineHigh:13,
+      score:10, band:"Low", indicator:"NO_MATERIAL_VOLUME_ANOMALY",
+      reasoning:"Current volume is 1 claim versus the provider baseline of 9-13 claims.",
+      claimIds:["CLM-011"], dateOfService:"2026-08-05"
+    },
+    coding:{
+      codingCpt:"99215", currentBatchCptCount:0, historicalCptCount:15, historicalTotalClaimCount:167,
+      providerPercentage:9, peerPercentage:8, differencePp:1, score:10, band:"Low",
+      indicator:"NO_MATERIAL_DIVERGENCE", reasoning:"CPT 99215 represents 9% of 167 historical claims versus 8% for peers.",
+      claimIds:[]
+    }
+  }
+];
+
+function providerOverall(p){
+  const best = [p.utilization, p.coding].sort((a,b)=>b.score-a.score)[0];
+  return {
+    score: best.score,
+    band: best.band,
+    indicator: best.indicator,
+    claimIds: Array.from(new Set([...(p.utilization.claimIds||[]), ...(p.coding.claimIds||[])])),
+    reviewRequired: best.band === "High" || best.band === "Critical"
+  };
+}
+
+let DATA = null;
+let claimsById = {};
+const sentLog = {};
+let sendTarget = null;
+
+function computeBand(findings) {
+  if ((findings||[]).some(f => f.severity === "Critical")) return "Critical";
+  if ((findings||[]).some(f => f.severity === "High")) return "High";
+  return "Low";
+}
+function computeDisposition(findings) { return (findings||[]).length ? "Pending" : "AutoCleared"; }
+
+function rebuildIndex() {
+  claimsById = {};
+  DATA.claims.forEach(c => {
+    c.band = computeBand(c.findings);
+    c.disposition = computeDisposition(c.findings);
+    claimsById[c.claimId] = c;
+  });
+}
+
+// Accept both the dashboard's existing claim-level format and the clean-claims
+// line-level format coming from Maestro. Line-level rows with the same claim_id
+// are grouped into one claim and all service lines are preserved.
+function normalizeClaimRows(rows, batchMeta) {
+  const grouped = new Map();
+
+  const asArray = value => {
+    if (Array.isArray(value)) return value;
+    if (value === null || value === undefined) return [];
+    return String(value).split(",").map(v => v.trim());
+  };
+
+  const parseNumber = value => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  rows.forEach((row, rowIndex) => {
+    const claimId = row.claim_id ?? row.claimId;
+    if (!claimId) return;
+
+    // Already-normalized dashboard claim: keep it intact.
+    if (Array.isArray(row.lineItems)) {
+      const existing = grouped.get(String(claimId));
+      if (!existing) {
+        grouped.set(String(claimId), { ...row, claimId: String(claimId), lineItems: row.lineItems.map(l => ({
+          cpt: l.cpt ?? "",
+          modifiers: Array.isArray(l.modifiers) ? l.modifiers : asArray(l.modifiers).filter(Boolean),
+          units: l.units ?? "",
+          billed: parseNumber(l.billed)
+        })) });
+      }
+      return;
+    }
+
+    let claim = grouped.get(String(claimId));
+    if (!claim) {
+      claim = {
+        claimId: String(claimId),
+        channel: row.channel ?? "",
+        member: row.member ?? row.member_name ?? "",
+        memberId: row.memberId ?? row.member_id ?? "",
+        provider: row.provider ?? row.billing_provider_name ?? "",
+        providerNpi: row.providerNpi ?? row.billing_provider_npi ?? "",
+        dateOfService: row.dateOfService ?? row.date_of_service ?? "",
+        receivedDate: row.receivedDate ?? row.claim_received_date ?? "",
+        placeOfService: row.placeOfService ?? row.place_of_service ?? "",
+        diagnoses: asArray(row.diagnoses ?? row.icd10_codes).filter(Boolean),
+        lineItems: [],
+        totalBilled: parseNumber(row.totalBilled ?? row.total_billed),
+        findings: Array.isArray(row.findings) ? row.findings.slice() : []
+      };
+      grouped.set(String(claimId), claim);
+    } else {
+      // Keep the first non-empty claim-level value, but fill gaps from later rows.
+      const fill = (key, ...values) => {
+        if (claim[key] === "" || claim[key] === undefined || claim[key] === null) {
+          const value = values.find(v => v !== undefined && v !== null && v !== "");
+          if (value !== undefined) claim[key] = value;
+        }
+      };
+      fill("channel", row.channel);
+      fill("member", row.member ?? row.member_name);
+      fill("memberId", row.memberId ?? row.member_id);
+      fill("provider", row.provider ?? row.billing_provider_name);
+      fill("providerNpi", row.providerNpi ?? row.billing_provider_npi);
+      fill("dateOfService", row.dateOfService ?? row.date_of_service);
+      fill("receivedDate", row.receivedDate ?? row.claim_received_date);
+      fill("placeOfService", row.placeOfService ?? row.place_of_service);
+      if (!claim.diagnoses.length) claim.diagnoses = asArray(row.diagnoses ?? row.icd10_codes).filter(Boolean);
+      if (!claim.totalBilled) claim.totalBilled = parseNumber(row.totalBilled ?? row.total_billed);
+      if (Array.isArray(row.findings)) claim.findings.push(...row.findings);
+    }
+
+    const cpts = asArray(row.cpt);
+    const lineNos = asArray(row.line_no);
+    const modifiers = asArray(row.modifiers);
+    const units = asArray(row.units);
+    const billed = asArray(row.billed);
+    const count = Math.max(cpts.length, lineNos.length, modifiers.length, units.length, billed.length);
+
+    for (let i = 0; i < count; i++) {
+      const cpt = cpts[i] ?? "";
+      const lineNo = lineNos[i] ?? "";
+      if (!cpt && !lineNo) continue;
+
+      claim.lineItems.push({
+        lineNo,
+        cpt,
+        modifiers: modifiers[i] ? [modifiers[i]] : [],
+        units: units[i] !== undefined && units[i] !== "" ? parseNumber(units[i]) : "",
+        billed: billed[i] !== undefined && billed[i] !== "" ? parseNumber(billed[i]) : 0
+      });
+    }
+  });
+
+  grouped.forEach(claim => {
+    // Prevent duplicate finding entries when multiple service lines repeat the same finding.
+    const uniqueFindings = [];
+    const seen = new Set();
+    (claim.findings || []).forEach(f => {
+      const key = JSON.stringify([f.rule, f.claimId, f.duplicateOf, f.severity, f.detail]);
+      if (!seen.has(key)) { seen.add(key); uniqueFindings.push(f); }
+    });
+    claim.findings = uniqueFindings;
+
+    // Sort service lines numerically when line_no is present.
+    claim.lineItems.sort((a, b) => {
+      const na = parseNumber(a.lineNo), nb = parseNumber(b.lineNo);
+      if (na && nb && na !== nb) return na - nb;
+      return 0;
+    });
+
+    if (!claim.totalBilled && claim.lineItems.length) {
+      claim.totalBilled = claim.lineItems.reduce((sum, l) => sum + parseNumber(l.billed), 0);
+    }
+  });
+
+  return {
+    batch: batchMeta || { batchId: "UNTITLED-BATCH", sourceFile: "", payer: "" },
+    claims: Array.from(grouped.values())
+  };
+}
+
+function normalizeInput(obj) {
+  if (Array.isArray(obj)) return normalizeClaimRows(obj);
+  if (!obj || typeof obj !== "object") return null;
+
+  // Maestro clean-claims payload: { clean_claims: [...] }
+  if (Array.isArray(obj.clean_claims)) {
+    return normalizeClaimRows(obj.clean_claims, obj.batch);
+  }
+
+  // Existing dashboard payload: { claims: [...] }
+  if (Array.isArray(obj.claims)) {
+    const alreadyNormalized = obj.claims.every(c => Array.isArray(c.lineItems));
+    return alreadyNormalized ? obj : normalizeClaimRows(obj.claims, obj.batch);
+  }
+
+  return null;
+}
+
+function applyData(obj) {
+  const normalized = normalizeInput(obj);
+  DATA = normalized || { batch: { batchId: "UNTITLED-BATCH", sourceFile: "", payer: "" }, claims: [] };
+  if (!DATA.batch) DATA.batch = { batchId: "UNTITLED-BATCH", sourceFile: "", payer: "" };
+  if (!Array.isArray(DATA.claims)) DATA.claims = [];
+  rebuildIndex();
+  document.getElementById("batch-id-label").textContent = DATA.batch.batchId || "";
+  document.getElementById("payer-label").textContent = DATA.batch.payer || "";
+  renderAll();
+}
+
+function validateBatch(obj) {
+  if (!obj || typeof obj !== "object") return "Not a JSON object or array.";
+  if (Array.isArray(obj)) {
+    for (const c of obj) if (!(c.claim_id || c.claimId)) return "Every claim row needs a \"claim_id\" or \"claimId\".";
+    return null;
+  }
+  if (Array.isArray(obj.clean_claims)) {
+    for (const c of obj.clean_claims) if (!(c.claim_id || c.claimId)) return "Every clean claim row needs a \"claim_id\" or \"claimId\".";
+    return null;
+  }
+  if (!Array.isArray(obj.claims)) return "Missing required field: \"claims\" (must be an array).";
+  for (const c of obj.claims) if (!(c.claimId || c.claim_id)) return "Every claim needs a \"claimId\" or \"claim_id\".";
+  return null;
+}
+
+function getLoadedClaimCount(obj) {
+  const normalized = normalizeInput(obj);
+  return normalized ? normalized.claims.length : 0;
+}
+
+/* ---------------- Load Data modal ---------------- */
+function loadFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      const err = validateBatch(obj);
+      if (err) { showLoadError(err); return; }
+      applyData(obj);
+      closeOverlay("load-overlay");
+      showToast(`<strong>Loaded</strong> — ${obj.batch ? obj.batch.batchId : "batch"} (${DATA.claims.length} claims).`);
+    } catch (e) { showLoadError("Could not parse that file as JSON: " + e.message); }
+  };
+  reader.readAsText(file);
+}
+document.getElementById("file-drop").addEventListener("click", () => document.getElementById("file-input").click());
+document.getElementById("file-input").addEventListener("change", (e) => { if (e.target.files[0]) loadFromFile(e.target.files[0]); });
+["dragover","drop"].forEach(evt => document.getElementById("file-drop").addEventListener(evt, e => e.preventDefault()));
+document.getElementById("file-drop").addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) loadFromFile(e.dataTransfer.files[0]); });
+
+document.getElementById("load-paste-btn").addEventListener("click", () => {
+  try {
+    const obj = JSON.parse(document.getElementById("json-paste").value);
+    const err = validateBatch(obj);
+    if (err) { showLoadError(err); return; }
+    applyData(obj);
+    closeOverlay("load-overlay");
+    showToast(`<strong>Loaded</strong> — ${obj.batch ? obj.batch.batchId : "batch"} (${DATA.claims.length} claims).`);
+  } catch (e) { showLoadError("Could not parse that as JSON: " + e.message); }
+});
+document.getElementById("load-sample-btn").addEventListener("click", () => {
+  applyData(JSON.parse(JSON.stringify(SAMPLE_DATA)));
+  closeOverlay("load-overlay");
+  showToast("Reset to sample data.");
+});
+document.getElementById("download-template-btn").addEventListener("click", () => {
+  downloadJson(DATA || SAMPLE_DATA, "claims_dashboard_data.json");
+});
+function showLoadError(msg) { const el = document.getElementById("load-error"); el.textContent = msg; el.classList.add("show"); }
+
+/* ---------------- Add Findings modal (additive merge) ---------------- */
+document.getElementById("apply-findings-btn").addEventListener("click", () => {
+  const errEl = document.getElementById("findings-error"), noteEl = document.getElementById("findings-note");
+  errEl.classList.remove("show"); noteEl.classList.remove("show");
+  let payload;
+  try { payload = JSON.parse(document.getElementById("findings-paste").value); }
+  catch (e) { errEl.textContent = "Could not parse that as JSON: " + e.message; errEl.classList.add("show"); return; }
+
+  if (!payload.rule) { errEl.textContent = "Missing \"rule\"."; errEl.classList.add("show"); return; }
+  const rule = payload.rule, label = payload.label || RULE_LABELS[rule] || rule, severity = payload.severity || "High";
+
+  let targets = [];
+  if (Array.isArray(payload.items)) {
+    targets = payload.items.map(it => ({
+      claimId: it.claimId, detail: it.detail || payload.detail, duplicateOf: it.duplicateOf || payload.duplicateOf,
+      severity: it.severity || severity, label: it.label || label, rule: it.rule || rule,
+    }));
+  } else if (payload.match) {
+    let matched = DATA.claims;
+    if (payload.match.claimIds) matched = matched.filter(c => payload.match.claimIds.includes(c.claimId));
+    else if (payload.match.providerNpi) matched = matched.filter(c => c.providerNpi === payload.match.providerNpi);
+    else { errEl.textContent = "\"match\" needs \"claimIds\" or \"providerNpi\"."; errEl.classList.add("show"); return; }
+    targets = matched.map(c => ({ claimId: c.claimId, detail: payload.detail, duplicateOf: payload.duplicateOf, severity, label, rule }));
+  } else {
+    errEl.textContent = "Provide either \"items\" or \"match\"."; errEl.classList.add("show"); return;
+  }
+
+  let matchedCount = 0; const missing = [];
+  targets.forEach(t => {
+    const claim = claimsById[t.claimId];
+    if (!claim) { missing.push(t.claimId); return; }
+    claim.findings = (claim.findings||[]).filter(f => f.rule !== t.rule);
+    claim.findings.push({ rule: t.rule, label: t.label, severity: t.severity, detail: t.detail, duplicateOf: t.duplicateOf });
+    matchedCount++;
+  });
+  rebuildIndex();
+  renderAll();
+
+  let msg = `Applied "${label}" (${rule}) to ${matchedCount} claim${matchedCount===1?"":"s"}.`;
+  if (missing.length) msg += ` Not found: ${missing.join(", ")}.`;
+  noteEl.textContent = msg; noteEl.classList.add("show");
+  showToast(`<strong>Findings applied</strong> — ${matchedCount} claim${matchedCount===1?"":"s"} updated.`);
+});
+
+/* ---------------- Modal plumbing ---------------- */
+function openOverlay(id) { document.getElementById(id).classList.add("open"); }
+function closeOverlay(id) { document.getElementById(id).classList.remove("open"); }
+document.getElementById("open-load-modal").addEventListener("click", () => { document.getElementById("load-error").classList.remove("show"); openOverlay("load-overlay"); });
+document.getElementById("load-close").addEventListener("click", () => closeOverlay("load-overlay"));
+document.getElementById("load-overlay").addEventListener("click", (e) => { if (e.target.id === "load-overlay") closeOverlay("load-overlay"); });
+
+document.getElementById("open-add-findings").addEventListener("click", () => {
+  document.getElementById("findings-error").classList.remove("show");
+  document.getElementById("findings-note").classList.remove("show");
+  openOverlay("findings-overlay");
+});
+document.getElementById("findings-close").addEventListener("click", () => closeOverlay("findings-overlay"));
+document.getElementById("findings-overlay").addEventListener("click", (e) => { if (e.target.id === "findings-overlay") closeOverlay("findings-overlay"); });
+
+Array.prototype.forEach.call(document.querySelectorAll(".load-tab"), t => {
+  t.addEventListener("click", () => {
+    Array.prototype.forEach.call(document.querySelectorAll(".load-tab"), x => x.classList.remove("active"));
+    Array.prototype.forEach.call(document.querySelectorAll(".load-pane"), x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("pane-" + t.dataset.pane).classList.add("active");
+  });
+});
+
+function downloadJson(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------- Tabs ---------------- */
+Array.prototype.forEach.call(document.querySelectorAll(".tab"), tab => {
+  tab.addEventListener("click", () => {
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), t => t.classList.remove("active"));
+    Array.prototype.forEach.call(document.querySelectorAll(".page"), p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("page-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+/* ---------------- Shared claim-row + detail rendering ---------------- */
+function findingsBadgesHtml(c) {
+  return (c.findings||[]).length
+    ? c.findings.map(f => `<span class="finding-badge ${f.severity}">${f.label}</span>`).join("")
+    : `<span style="color:var(--text-faint); font-size:12px;">—</span>`;
+}
+
+function findingsDetailHtml(c) {
+  if (!(c.findings||[]).length) return "";
+  const rows = c.findings.map(f => {
+    let extra = "";
+    if (f.duplicateOf) {
+      const other = claimsById[f.duplicateOf];
+      if (other) {
+        extra = `<div class="dup-compare">
+            <div class="dup-side"><div class="dup-tag">This claim — ${c.channel}, received ${c.receivedDate||"—"}</div></div>
+            <div class="dup-side"><div class="dup-tag">${f.duplicateOf} — ${other.channel}, received ${other.receivedDate||"—"}</div></div>
+          </div>
+          <button class="link-btn" data-jump="${f.duplicateOf}">View ${f.duplicateOf} →</button>`;
+      }
+    }
+    return `<div class="finding-detail-row">
+        <div class="fd-head"><div class="fd-head-left"><span class="finding-badge ${f.severity}">${f.label}</span><span class="fd-rule">${f.rule||""}</span></div></div>
+        <div class="fd-detail">${f.detail || "No further detail provided for this finding."}</div>
+        ${extra}
+      </div>`;
+  }).join("");
+  return `<div class="detail-label" style="margin-top:18px;">WHY FLAGGED</div>${rows}`;
+}
+
+function claimRowsHtml(claims) {
+  if (!claims.length) return `<tr><td colspan="9"><div class="empty-state">No claims here.</div></td></tr>`;
+  return claims.map(c => `
+    <tr class="claim-row" data-claim="${c.claimId}">
+      <td style="width:16px;"><span class="caret">▸</span></td>
+      <td class="mono" style="font-weight:600;">${c.claimId}</td>
+      <td><span class="chan-badge ${c.channel}">${c.channel}</span></td>
+      <td>${c.member}<br><span style="font-size:11px; color:var(--text-faint);">${c.memberId}</span></td>
+      <td>${c.provider}<br><span style="font-size:11px; color:var(--text-faint);">${c.providerNpi}</span></td>
+      <td class="mono">${c.dateOfService}</td>
+      <td class="mono">${Number(c.totalBilled).toFixed(2)}</td>
+      <td>${findingsBadgesHtml(c)}</td>
+      <td><span class="disp-tag ${c.disposition}">${c.disposition}</span> ${sentLog[c.claimId] ? '<span class="sent-badge">Sent</span>' : ""}</td>
+    </tr>
+    <tr class="detail-row"><td colspan="9">
+      <div class="detail-wrap" id="detail-${c.claimId}">
+        <div class="detail-label">SERVICE LINES</div>
+        <table class="mini"><thead><tr><th>CPT</th><th>Modifiers</th><th>Units</th><th>Billed</th></tr></thead>
+        <tbody>${(c.lineItems||[]).map(l => `<tr><td class="mono">${l.cpt}</td><td class="mono">${(l.modifiers||[]).length?l.modifiers.join(","):"—"}</td><td>${l.units}</td><td class="mono">${Number(l.billed).toFixed(2)}</td></tr>`).join("")}</tbody></table>
+        <div class="claim-header-grid">
+          <div class="ch-field"><div class="k">Received</div><div class="v">${c.receivedDate||"—"}</div></div>
+          <div class="ch-field"><div class="k">Place of service</div><div class="v">${c.placeOfService||"—"}</div></div>
+          <div class="ch-field"><div class="k">Diagnoses</div><div class="v">${(c.diagnoses||[]).join(", ")||"—"}</div></div>
+          <div class="ch-field"><div class="k">Total billed</div><div class="v">${Number(c.totalBilled).toFixed(2)}</div></div>
+        </div>
+        ${findingsDetailHtml(c)}
+      </div>
+    </td></tr>
+  `).join("");
+}
+
+function wireClaimRows(tbody) {
+  Array.prototype.forEach.call(tbody.querySelectorAll(".claim-row"), row => {
+    row.addEventListener("click", () => {
+      const id = row.dataset.claim;
+      const wrap = document.getElementById("detail-" + id);
+      const isOpen = wrap.classList.contains("open");
+      Array.prototype.forEach.call(tbody.querySelectorAll(".detail-wrap"), w => w.classList.remove("open"));
+      Array.prototype.forEach.call(tbody.querySelectorAll(".claim-row"), r => r.classList.remove("expanded"));
+      if (!isOpen) { wrap.classList.add("open"); row.classList.add("expanded"); }
+    });
+  });
+  Array.prototype.forEach.call(tbody.querySelectorAll("[data-jump]"), btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const targetId = btn.dataset.jump;
+      Array.prototype.forEach.call(tbody.querySelectorAll(".detail-wrap"), w => w.classList.remove("open"));
+      Array.prototype.forEach.call(tbody.querySelectorAll(".claim-row"), r => r.classList.remove("expanded"));
+      const targetWrap = document.getElementById("detail-" + targetId);
+      const targetRow = tbody.querySelector(`.claim-row[data-claim="${targetId}"]`);
+      if (targetWrap) targetWrap.classList.add("open");
+      if (targetRow) { targetRow.classList.add("expanded"); targetRow.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    });
+  });
+}
+
+/* ---------------- Render: Overview ---------------- */
+function renderOverview() {
+  const claims = DATA.claims;
+  document.getElementById("stat-total").textContent = claims.length;
+  document.getElementById("stat-findings").textContent = claims.filter(c => (c.findings||[]).length>0).length;
+  document.getElementById("stat-cleared").textContent = claims.filter(c => c.disposition === "AutoCleared").length;
+  document.getElementById("stat-review").textContent = claims.filter(c => (c.findings||[]).length>0).length;
+
+  const grid = document.getElementById("rule-summary-grid");
+  grid.innerHTML = RULE_TABS.map(code => {
+    const n = claims.filter(c => (c.findings||[]).some(f => f.rule === code)).length;
+    return `<div class="rule-summary-card" data-goto="${code}"><div class="n ${n===0?'zero':''}">${n}</div><div class="lbl">${RULE_LABELS[code]}</div></div>`;
+  }).join("");
+  Array.prototype.forEach.call(grid.querySelectorAll("[data-goto]"), el => {
+    el.addEventListener("click", () => document.querySelector(`.tab[data-tab="${el.dataset.goto}"]`).click());
+  });
+
+  const bandCounts = { Low: 0, High: 0, Critical: 0 };
+  claims.forEach(c => bandCounts[c.band]++);
+  const bandColors = { Low: "var(--text-faint)", High: "var(--amber)", Critical: "var(--red)" };
+  document.getElementById("band-bar").innerHTML = ["Low","High","Critical"].map(b => bandCounts[b] > 0
+    ? `<div class="band-seg ${b}" style="flex:${bandCounts[b]};">${bandCounts[b]}</div>` : "").join("");
+  document.getElementById("band-legend").innerHTML = ["Low","High","Critical"].map(b =>
+    `<span><span class="legend-dot" style="background:${bandColors[b]};"></span>${b} (${bandCounts[b]})</span>`).join("");
+}
+
+/* ---------------- Render: Claims + rule tabs ---------------- */
+function renderClaims() {
+  document.getElementById("count-claims").textContent = DATA.claims.length;
+  const tbody = document.getElementById("tbody-claims");
+  tbody.innerHTML = claimRowsHtml(DATA.claims);
+  wireClaimRows(tbody);
+}
+
+function renderProviderUtilization(){
+  const body = document.getElementById("provider-util-body");
+  if (!body) return;
+
+  const signals = PROVIDER_ANALYSIS.filter(p => p.utilization.indicator === "UTILIZATION_VOLUME").length;
+  const review = PROVIDER_ANALYSIS.filter(p => p.utilization.band === "High" || p.utilization.band === "Critical").length;
+  const highest = PROVIDER_ANALYSIS.some(p => p.utilization.band === "Critical") ? "Critical"
+    : PROVIDER_ANALYSIS.some(p => p.utilization.band === "High") ? "High" : "Low";
+
+  document.getElementById("pu-stat-providers").textContent = PROVIDER_ANALYSIS.length;
+  document.getElementById("pu-stat-signals").textContent = signals;
+  document.getElementById("pu-stat-highest").textContent = highest;
+  document.getElementById("pu-stat-review").textContent = review;
+  document.getElementById("count-R005").textContent = PROVIDER_ANALYSIS.reduce((n,p)=>n+(p.utilization.indicator==="UTILIZATION_VOLUME"?p.utilization.claimIds.length:0),0);
+
+  body.innerHTML = PROVIDER_ANALYSIS.map((p,i)=>{
+    const u=p.utilization;
+    return `<tr class="provider-click" data-provider-index="${i}">
+      <td><strong>${p.name}</strong><div class="provider-sub">NPI ${p.npi}</div></td>
+      <td>${p.specialty}</td>
+      <td class="mono"><strong>${u.currentClaimCount}</strong></td>
+      <td class="mono">${u.providerBaselineLow} – ${u.providerBaselineHigh}</td>
+      <td class="mono">${u.score}</td>
+      <td><span class="pill ${u.band}">${u.band}</span></td>
+      <td><span class="finding-badge ${u.band}">${u.indicator}</span></td>
+    </tr>`;
+  }).join("");
+
+  body.querySelectorAll(".provider-click").forEach(row=>{
+    row.addEventListener("click", ()=>{
+      body.querySelectorAll(".provider-click").forEach(r=>r.classList.remove("provider-selected"));
+      row.classList.add("provider-selected");
+      showProviderDetail(Number(row.dataset.providerIndex),"utilization");
+    });
+  });
+
+  showProviderDetail(3,"utilization");
+  if (body.querySelector('[data-provider-index="3"]')) body.querySelector('[data-provider-index="3"]').classList.add("provider-selected");
+}
+
+function renderCodingDistribution(){
+  const body = document.getElementById("coding-dist-body");
+  if (!body) return;
+
+  const signals = PROVIDER_ANALYSIS.filter(p => p.coding.indicator === "CODING_DISTRIBUTION").length;
+  document.getElementById("count-R006").textContent = signals;
+
+  body.innerHTML = PROVIDER_ANALYSIS.map((p,i)=>{
+    const c=p.coding;
+    return `<tr class="provider-click" data-provider-index="${i}">
+      <td><strong>${p.name}</strong><div class="provider-sub">NPI ${p.npi}</div></td>
+      <td class="mono">${c.codingCpt}</td>
+      <td class="mono">${c.providerPercentage}%</td>
+      <td class="mono">${c.peerPercentage}%</td>
+      <td class="mono">${c.differencePp>0?"+":""}${c.differencePp} pp</td>
+      <td class="mono">${c.score}</td>
+      <td><span class="pill ${c.band}">${c.band}</span></td>
+      <td><span class="finding-badge ${c.band}">${c.indicator}</span></td>
+    </tr>`;
+  }).join("");
+
+  body.querySelectorAll(".provider-click").forEach(row=>{
+    row.addEventListener("click", ()=>{
+      body.querySelectorAll(".provider-click").forEach(r=>r.classList.remove("provider-selected"));
+      row.classList.add("provider-selected");
+      showProviderDetail(Number(row.dataset.providerIndex),"coding");
+    });
+  });
+
+  showProviderDetail(4,"coding");
+  if (body.querySelector('[data-provider-index="4"]')) body.querySelector('[data-provider-index="4"]').classList.add("provider-selected");
+}
+
+function showProviderDetail(i, mode){
+  const p=PROVIDER_ANALYSIS[i];
+  if(!p) return;
+  const target=mode==="coding" ? document.getElementById("coding-dist-detail") : document.getElementById("provider-util-detail");
+  const other=mode==="coding" ? document.getElementById("provider-util-detail") : document.getElementById("coding-dist-detail");
+  if(other) other.innerHTML="";
+
+  const o=providerOverall(p);
+  const u=p.utilization, c=p.coding;
+
+  const utilBox = `
+    <div class="analysis-box">
+      <h4>Provider Utilization Volume</h4>
+      <div class="metric-row"><span class="k">Current Volume</span><span class="v">${u.currentClaimCount}</span></div>
+      <div class="metric-row"><span class="k">Provider Baseline</span><span class="v">${u.providerBaselineLow} – ${u.providerBaselineHigh}</span></div>
+      <div class="metric-row"><span class="k">Score</span><span class="v">${u.score}</span></div>
+      <div class="metric-row"><span class="k">Band</span><span class="v"><span class="pill ${u.band}">${u.band}</span></span></div>
+      <div class="review-flag"><span class="finding-badge ${u.band}">${u.indicator}</span></div>
+      <div class="analysis-summary" style="padding:12px 0 0;border:0">${u.reasoning}</div>
+      <div class="claim-chips">${(u.claimIds||[]).map(id=>`<span class="claim-chip">${id}</span>`).join("") || '<span class="provider-sub">No linked claims</span>'}</div>
+    </div>`;
+
+  const codingBox = `
+    <div class="analysis-box">
+      <h4>Coding Distribution / Peer Comparison</h4>
+      <div class="metric-row"><span class="k">Coding CPT</span><span class="v">${c.codingCpt}</span></div>
+      <div class="metric-row"><span class="k">Historical Claims</span><span class="v">${c.historicalCptCount} / ${c.historicalTotalClaimCount}</span></div>
+      <div class="metric-row"><span class="k">Provider Share</span><span class="v">${c.providerPercentage}%</span></div>
+      <div class="metric-row"><span class="k">Peer Share</span><span class="v">${c.peerPercentage}%</span></div>
+      <div class="metric-row"><span class="k">Difference</span><span class="v">${c.differencePp>0?"+":""}${c.differencePp} pp</span></div>
+      <div class="compare-bar">
+        <div class="row"><div class="label"><span>Provider</span><strong>${c.providerPercentage}%</strong></div><div class="track"><div class="fill-provider" style="width:${Math.min(100,c.providerPercentage)}%"></div></div></div>
+        <div class="row"><div class="label"><span>Peer</span><strong>${c.peerPercentage}%</strong></div><div class="track"><div class="fill-peer" style="width:${Math.min(100,c.peerPercentage)}%"></div></div></div>
+      </div>
+      <div class="review-flag"><span class="finding-badge ${c.band}">${c.indicator}</span></div>
+      <div class="analysis-summary" style="padding:12px 0 0;border:0">${c.reasoning}</div>
+      <div class="claim-chips">${(c.claimIds||[]).map(id=>`<span class="claim-chip">${id}</span>`).join("") || '<span class="provider-sub">No linked claims</span>'}</div>
+    </div>`;
+
+  const panel = `
+    <div class="analysis-card">
+      <div class="analysis-head">
+        <div><h3>${p.name}</h3><div class="analysis-meta">NPI ${p.npi} · ${p.specialty} · ${p.peerGroup} Peer Group</div></div>
+        <div class="analysis-score"><span class="pill ${o.band}">${o.band}</span><span class="score">Score ${o.score}</span></div>
+      </div>
+      <div class="analysis-grid">${mode==="coding" ? codingBox : utilBox}</div>
+      <div class="analysis-summary">
+        <strong>Overall:</strong> ${o.indicator} · ${o.band} · Score ${o.score}
+        ${o.claimIds.length ? `<div class="claim-list">Linked claims: ${o.claimIds.join(", ")}</div>
+        <div class="review-flag"><button class="send-mini-btn" data-provider-review="${o.claimIds[0]}">Review ${o.claimIds.length} linked claim${o.claimIds.length===1?"":"s"}</button></div>` : ""}
+      </div>
+    </div>`;
+
+  target.innerHTML=panel;
+
+  const reviewBtn=target.querySelector("[data-provider-review]");
+  if(reviewBtn) reviewBtn.addEventListener("click",e=>openSendModal(e.currentTarget.dataset.providerReview));
+}
+
+function renderRuleTabs(){
+  // R001-R004 remain claim-based and retain the original functional behavior.
+  ["R001","R002","R003","R004"].forEach(code=>{
+    const claims=DATA.claims.filter(c=>(c.findings||[]).some(f=>f.rule===code));
+    const countEl=document.getElementById("count-"+code);
+    countEl.textContent=claims.length;
+    countEl.classList.toggle("zero",claims.length===0);
+    const tbody=document.getElementById("tbody-"+code);
+    tbody.innerHTML=claims.length ? claimRowsHtml(claims) : `<tr><td colspan="9"><div class="empty-state">No claims flagged under ${RULE_LABELS[code]} (${code}) in this batch.</div></td></tr>`;
+    wireClaimRows(tbody);
+  });
+  renderProviderUtilization();
+  renderCodingDistribution();
+}
+
+/* ---------------- Render: Review ---------------- */
+function renderReview() {
+  const claims = DATA.claims.filter(c => (c.findings||[]).length > 0)
+    .sort((a,b) => ({Critical:2,High:1,Low:0}[b.band] - ({Critical:2,High:1,Low:0}[a.band])));
+  document.getElementById("count-review").textContent = claims.length;
+  const tbody = document.getElementById("tbody-review");
+  tbody.innerHTML = claims.length ? claims.map(c => `
+    <tr>
+      <td class="mono" style="font-weight:600;">${c.claimId}</td>
+      <td>${c.provider}</td>
+      <td><span class="finding-badge ${c.band}">${c.band}</span></td>
+      <td>${findingsBadgesHtml(c)}</td>
+      <td class="mono">${Number(c.totalBilled).toFixed(2)}</td>
+      <td>
+        <button class="send-mini-btn" data-send="${c.claimId}">Send →</button>
+        ${sentLog[c.claimId] ? '<span class="sent-badge" style="margin-left:6px;">Sent</span>' : ""}
+      </td>
+    </tr>`).join("") : `<tr><td colspan="6"><div class="empty-state">No claims currently carry a finding — review queue is empty.</div></td></tr>`;
+
+  Array.prototype.forEach.call(tbody.querySelectorAll("[data-send]"), btn => {
+    btn.addEventListener("click", () => openSendModal(btn.dataset.send));
+  });
+}
+
+/* ---------------- Send modal ---------------- */
+function openSendModal(claimId) {
+  sendTarget = claimsById[claimId];
+  if (!sendTarget) return;
+  const c = sendTarget;
+  document.getElementById("send-title").textContent = c.claimId;
+  document.getElementById("send-sub").textContent = `${c.provider} · Band ${c.band}`;
+  document.getElementById("send-to").value = "";
+  document.getElementById("send-subject").value = `[Claims Screening] ${c.claimId} — ${(c.findings[0]||{}).label || "Review"}`;
+
+  const findingsText = c.findings.map(f => `- [${f.rule}] ${f.label} (${f.severity}): ${f.detail || "no detail provided"}`).join("\n");
+  const body = [
+    `Batch: ${DATA.batch.batchId}`,
+    `Claim: ${c.claimId}`,
+    `Member: ${c.member} (${c.memberId})`,
+    `Provider: ${c.provider} (${c.providerNpi})`,
+    `Date of service: ${c.dateOfService}`,
+    `Total billed: ${Number(c.totalBilled).toFixed(2)}`,
+    ``,
+    `Findings:`,
+    findingsText,
+    ``,
+    `— sent from Claims Dashboard`,
+  ].join("\n");
+  document.getElementById("send-body").value = body;
+  openOverlay("send-overlay");
+}
+document.getElementById("send-close").addEventListener("click", () => closeOverlay("send-overlay"));
+document.getElementById("send-overlay").addEventListener("click", (e) => { if (e.target.id === "send-overlay") closeOverlay("send-overlay"); });
+
+document.getElementById("send-confirm-btn").addEventListener("click", () => {
+  if (!sendTarget) return;
+  const to = document.getElementById("send-to").value.trim();
+  const subject = document.getElementById("send-subject").value;
+  const body = document.getElementById("send-body").value;
+  window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  sentLog[sendTarget.claimId] = true;
+  closeOverlay("send-overlay");
+  renderAll();
+  showToast(`<strong>Email opened</strong> — ${sendTarget.claimId} marked as sent.`);
+});
+
+let toastTimer = null;
+function showToast(html) {
+  const toast = document.getElementById("toast");
+  toast.innerHTML = html; toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 4200);
+}
+
+function renderAll() { renderOverview(); renderClaims(); renderRuleTabs(); renderReview(); }
+
+/* ---------------- Init ---------------- */
+/* Auto-load: if the page URL has ?data=<url-to-json>, fetch and display it
+   automatically — no click needed. Falls back to sample data if absent,
+   unreachable, or invalid. This is what makes the dashboard a "portal":
+   host it once, then link to it with a different ?data= per batch. */
+(function init() {
+  if (typeof URLSearchParams === "undefined") {
+    applyData(JSON.parse(JSON.stringify(SAMPLE_DATA)));
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const dataUrl = params.get("data");
+  if (!dataUrl) {
+    applyData(JSON.parse(JSON.stringify(SAMPLE_DATA)));
+    return;
+  }
+  fetch(dataUrl)
+    .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+    .then(obj => {
+      const err = validateBatch(obj);
+      if (err) throw new Error(err);
+      applyData(obj);
+      showToast(`<strong>Loaded from URL</strong> — ${obj.batch ? obj.batch.batchId : "batch"} (${DATA.claims.length} claims).`);
+    })
+    .catch(e => {
+      applyData(JSON.parse(JSON.stringify(SAMPLE_DATA)));
+      showToast(`<strong>Could not load ?data= URL</strong> — ${e.message}. Showing sample data instead.`);
+    });
+})();
+</script>
+
+</body>
+</html>
